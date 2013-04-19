@@ -23,13 +23,13 @@ pthread_cond_t cvar = PTHREAD_COND_INITIALIZER;
 int count = DEFAULT_COUNT;
 
 
-extern int square(int x);	/* callback */
+extern void bar(int x, int *r);	/* callback */
 
 
 static void *
 start_chicken(void *arg)
 {
-  CHICKEN_eval_string("(begin (print 'ok) (do () (#f)))", NULL);
+  CHICKEN_run(C_toplevel);
   return NULL;
 }
 
@@ -37,24 +37,27 @@ start_chicken(void *arg)
 static void *
 start(void *arg)
 {
-  int i = (int)arg;
-  int j;
+  long i = (long)arg;
+  int j, r;
 
+  printf("thread %ld waiting...\n", i);
   pthread_mutex_lock(&cmutex);
   pthread_cond_wait(&cvar, &cmutex);
-  printf("thread %d running ...\n", i);
+  printf("thread %ld running ...\n", i);
 
   for(j = 0; j < count; ++j) {
-    int r = square(i + j);
+    int r;
+    
+    bar(i + j, &r);
     int rok = (i + j) * (i + j);
 
     if(r != rok) {
-      printf("ERROR: thread %d expected %d but got %d\n", i, rok, r);
+      printf("ERROR: thread %ld expected %d but got %d\n", i, rok, r);
       exit(EXIT_FAILURE);
     }
   }
 
-  printf("thread %d done.\n", i);
+  printf("thread %ld done.\n", i);
   return NULL;
 }
 
@@ -66,6 +69,7 @@ main(int argc, char *argv[])
   int n = DEFAULT_THREADS;
 
   pthread_create(&chicken_thread, NULL, start_chicken, NULL);
+  sleep(2);			/* give it some time to get running */
 
   if(argc > 1)
     n = atoi(argv[ 1 ]);
@@ -76,7 +80,7 @@ main(int argc, char *argv[])
   printf("creating %d threads ...\n", n);
 
   for(i = 0; i < n; ++i)
-    pthread_create(&threads[ i ], NULL, start, (void *)i);
+    pthread_create(&threads[ i ], NULL, start, (void *)(long)i);
 
   pthread_cond_broadcast(&cvar);
 

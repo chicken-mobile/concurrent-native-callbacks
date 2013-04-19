@@ -15,7 +15,7 @@ extract_argument_ptr(void *buf)
 static void
 free_argument_ptr(void **ptr)
 {
-  free(pptr);
+  free(ptr);
 }
 
 
@@ -40,10 +40,21 @@ read_message(int fd)
   int c, n;
 
   for(c = sizeof(val); c > 0; c -= n) {
+    printf("start read (fd %d)\n", fd);	/* XXX */
     n = read(fd, &val, sizeof(void *));
+    printf("read: %d\n", n);	/* XXX */
 
     if(n == 0) return NULL;	/* EOF */
   }
 
   return val;
+}
+
+
+static void
+send_termination_message(int fd)
+{
+  void *n = NULL;
+  
+  write(fd, &n, sizeof(void *));
 }

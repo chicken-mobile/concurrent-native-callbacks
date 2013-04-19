@@ -1,23 +1,23 @@
 ;;;; concurrent native callbacks
 
 
-(use typed-records matchable srfi-69 srfi-1 posix bind)
+(use typed-records matchable srfi-69 srfi-1 posix bind data-structures
+     srfi-18)
 
 
-#|XXX
 (import-for-syntax chicken matchable)
 
 (begin-for-syntax
- (require-extension cnbc-compile-time))
+ (require-extension concurrent-native-callbacks-compile-time))
+
 
 (bind-file* "twiddle.c")
-|#
 
 
-(define-typed-record dispatcher
+(define-record dispatcher
   (id : symbol)
   (thread : thread)
-  (callbacks : (list-of (pair fixnum ((struct dispatcher) c-pointer -> * boolean))))
+  (callbacks : (list-of (pair fixnum ((struct dispatcher) pointer -> * boolean))))
   (argument-input-fileno : fixnum)
   (argument-output-fileno : fixnum)
   (result-input-fileno : fixnum)
@@ -33,6 +33,10 @@
 	   (in (dispatcher-argument-input-fileno disp))
 	   (out (dispatcher-result-output-fileno disp)))
       (let loop ()
+	(print "starting dispatcher " id ", argument fds (in/out) = " 
+	       in "/" (dispatcher-argument-output-fileno disp)
+	       ", result fds (in/out) = " 
+	       (dispatcher-result-input-fileno disp) "/" out) ;XXX
 	(let ((input (read_message in)))
 	  (unless (##sys#null-pointer? input) ; aborts dispatcher
 	    (let ((cbname (extract_callback_name input)))
@@ -61,14 +65,20 @@
    (alist-update! name cb (dispatcher-callbacks disp))))
 
 (define (dispatcher-terminate! disp)
-  (send_termination_signal 
+  (send_termination_message
    (dispatcher-argument-input-fileno disp)))
 
+
 (define-syntax define-concurrent-native-callback
-  (cnbc-transformer #f))
+  (er-macro-transformer
+   (lambda (x r c)
+     (cncb-transformer x r c #f))))
 
 (define-syntax define-synchronous-concurrent-native-callback
-  (cnbc-transformer #t))
+  (er-macro-transformer
+   (lambda (x r c)
+     (cncb-transformer x r c #t))))
 
+;;XXX is this obsolete?
 (define (synchronous-return argptr result)
   (trigger_return argptr))

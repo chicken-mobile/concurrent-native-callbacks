@@ -1,29 +1,30 @@
 ;;;; compile-time part of cncb
 
 
-(define (cnbc-transformer sync)
-  (er-macro-transformer
-   (lambda (x r c)
-     (let ((%d (r 'd))
-	   (%a (r 'a))
-	   (%begin (r 'begin))
-	   (%dispatcher-add! (r 'dispatcher-add!))
-	   (%quote (r 'quote))
-	   (%define (r 'define))
-	   (%dispatcher (r 'dispatcher))
-	   (%lambda (r 'lambda)))
-       (match x
-	 ;;XXX change to "((name dispatcher-id) args ...)", id optional
-	 ((_ (name args ...) dispatcher-id body ...)
-	  `(,%begin
-	    (,%define ,%d (,%dispatcher (,%quote ,dispatcher-id)))
-	    ,(generate-entry-point r name %d args sync)
-	    (,%dispatcher-add!
-	     ,%d
-	     (,%quote ,name)
-	     (,%lambda
-	      (,%d ,%a) 
-	      ,(unstash-and-execute r args %a body sync))))))))))
+(use data-structures srfi-1 matchable ports)
+
+
+(define (cncb-transformer x r c sync)
+  (let ((%d (r 'd))
+	(%a (r 'a))
+	(%begin (r 'begin))
+	(%dispatcher-add! (r 'dispatcher-add!))
+	(%quote (r 'quote))
+	(%define (r 'define))
+	(%dispatcher (r 'dispatcher))
+	(%lambda (r 'lambda)))
+    (match x
+      ;;XXX change to "((name dispatcher-id) args ...)", id optional
+      ((_ (name args ...) dispatcher-id body ...)
+       `(,%begin
+	 (,%define ,%d (,%dispatcher (,%quote ,dispatcher-id)))
+	 ,(generate-entry-point r name %d args sync)
+	 (,%dispatcher-add!
+	  ,%d
+	  (,%quote ,name)
+	  (,%lambda
+	   (,%d ,%a) 
+	   ,(unstash-and-execute r args %a body sync))))))))
 
 (define (generate-entry-point r name dispvar t/a sync)
   (let ((cvar (gensym "cvar"))
@@ -34,28 +35,30 @@
 	(ptr (gensym "ptr"))
 	(%begin (r 'begin))
 	(%define-foreign-variable (r 'define-foreign-variable))
-	(%dispatcher-argument-input-fd (r 'dispatcher-argument-input-fd))
-	(%dispatcher-result-output-fd (r 'dispatcher-result-output-fd))
-	(%foreign-code (r 'foreign-code)))
+	(%dispatcher-argument-input-fileno (r 'dispatcher-argument-input-fileno))
+	(%dispatcher-result-output-fileno (r 'dispatcher-result-output-fileno))
+	(%foreign-declare (r 'foreign-declare)))
     ;; - by convention, in a synchronous call the last argument is a pointer to the result value
     (define (stash-arguments args)
       (let ((size (gensym "size")))
 	(with-output-to-string
 	  (lambda ()
 	    ;; add ptr to callback-name and cvar-ptr
-	    (printf "int ~a = sizeof(void *) * 2;~%char ~a, ~a;~%" 
+	    (printf "int ~a = sizeof(void *) * 2;~%char *~a, *~a;~%" 
 	      size data ptr)
 	    (for-each
 	     (match-lambda
 	       ((type arg)
 		(printf "~a += sizeof ~a;~%" size arg)))
 	     args)
-	    (printf "~a = (char *)malloc(~a);~%assert(~a);~%~a = ~a~%"
-	      data size data ptr data)
+	    ;;XXX result of malloc(3) not checked
+	    (printf "~a = (char *)malloc(~a);~%~a = ~a;~%"
+	      data size ptr data)
 	    (printf "*((char **)~a) = \"~a\";~%~a += sizeof(char *);~%" 
 	      ptr name ptr)
-	    (printf "*((void **)~a) = &~a;~%~a += sizeof(void *);~%" 
-	      ptr cvar ptr)
+	    (when sync
+	      (printf "*((void **)~a) = &~a;~%~a += sizeof(void *);~%" 
+		ptr cvar ptr))
 	    (for-each
 	     (match-lambda
 	       ((type arg)
@@ -63,8 +66,14 @@
 		  ptr arg arg ptr arg)))
 	     args)))))
     `(,%begin
-      (,%foreign-code
+      (,%foreign-declare
+       "#include <pthread.h>\n"
        ,(conc "static int " infd "," outfd ";\n")
+       ,(if sync
+	    (conc
+	     "pthread_cond_t " cvar " = PTHREAD_COND_INITIALIZER;\n"
+	     "pthread_mutex_t " mutex " = PTHREAD_MUTEX_INITIALIZER;\n")
+	    "")
        ,(conc "void " name "("
 	      (string-intersperse 
 	       (map (match-lambda
@@ -74,23 +83,21 @@
 	       ",")
 	      "){\n")
        ,(if sync
-	    (conc
-	     "pthread_cond_t " cvar " = PTHREAD_COND_INITIALIZER;\n"
-	     "pthread_mutex_t " mutex " = PTHREAD_MUTEX_INITIALIZER;\n"
-	     "pthread_mutex_lock(" mutex ");\n")
+	    (conc "pthread_mutex_lock(&" mutex ");\n")
 	    "")
        ,(stash-arguments t/a)
        ;; no locking, unless size of data block exceeds PIPE_BUF
        ;;XXX should check for this, even if it is unlikely
+       ,(conc "printf(\"writing to fd %d\\n\", " outfd ");\n") ;XXX
        ,(conc "write(" outfd ", " data ", " ptr " - " data ");\n")
        ,(if sync
 	   (conc "pthread_cond_wait(&" cvar ", &" mutex ");\n")
 	   "")
-       ,(conc "free(" data ");\n"))
+       ,(conc "free(" data "); }\n"))
       (,%define-foreign-variable ,infd int)
       (,%define-foreign-variable ,outfd int)
-      (set! ,outfd (,%dispatcher-result-output-fd ,dispvar))
-      (set! ,infd (,%dispatcher-argument-input-fd ,dispvar)))))
+      (set! ,outfd (,%dispatcher-result-output-fileno ,dispvar))
+      (set! ,infd (,%dispatcher-argument-input-fileno ,dispvar)))))
 
 
 (define (unstash-and-execute r t/a ptr body sync)
