@@ -18,6 +18,7 @@ static void *
 start_chicken(void *arg)
 {
   CHICKEN_run(C_toplevel);
+  printf("chicken returned.\n");
   return NULL;
 }
 
@@ -47,7 +48,7 @@ main(int argc, char *argv[])
 
   pthread_create(&chicken_thread, NULL, start_chicken, NULL);
   sleep(2);			/* give it some time to get running */
-
+  printf("creating threads ...\n");
   pthread_create(&t1, NULL, start1, NULL);
   sleep(1);
   pthread_create(&t2, NULL, start2, NULL);

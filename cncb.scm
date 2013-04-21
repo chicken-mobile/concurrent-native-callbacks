@@ -28,12 +28,18 @@
 (define word-size (foreign-value "sizeof(void *)" int))
 (define dispatcher-table (make-hash-table eq?))
 
+(define (nonblocking-pipe-input-port fd id)
+  (##sys#custom-input-port 'nonblocking-pipe-input-port (->string id) fd #t))
+
+(define (nonblocking-pipe-output-port fd id)
+  (##sys#custom-output-port 'nonblocking-pipe-output-port (->string id) fd #t))
+
 (define (dispatcher id)
   (define (dthread) (make-thread dispatch))
   (define (dispatch)
     (let* ((disp (thread-specific (current-thread)))
-	   (in (open-input-file* (dispatcher-argument-input-fileno disp)))
-	   (out (open-output-file* (dispatcher-result-output-fileno disp))))
+	   (in (nonblocking-pipe-input-port (dispatcher-argument-input-fileno disp) id))
+	   (out (nonblocking-pipe-output-port (dispatcher-result-output-fileno disp) id)))
       (print "starting dispatcher " id " ...") ;XXX
       (let loop ()
 	(let ((input (extract_argument_ptr (read-string word-size in))))

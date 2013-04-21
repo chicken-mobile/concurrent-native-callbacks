@@ -7,6 +7,13 @@
   (print "bar: " x)
   (* x x))
 
+(thread-start!
+ (lambda ()
+   (print "starting spin ...")
+   (do () (#f) 
+     (print* "_")
+     (thread-sleep! 0.25))))
+
 (print "started")
 (thread-sleep! 1000000)
 (print "timeout")
