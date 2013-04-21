@@ -11,7 +11,7 @@ pthread_t chicken_thread;
 
 
 extern void foo(int x);	/* callback */
-extern void bar(int x, int *r);	/* callback */
+extern int bar(int x);	/* callback */
 
 
 static void *
@@ -34,9 +34,7 @@ start1(void *arg)
 static void *
 start2(void *arg)
 {
-  int r;
-
-  bar(42, &r);
+  int r = bar(43);
   printf("bar done: %d\n", r);
   return NULL;
 }
@@ -51,9 +49,11 @@ main(int argc, char *argv[])
   sleep(2);			/* give it some time to get running */
 
   pthread_create(&t1, NULL, start1, NULL);
+  sleep(1);
   pthread_create(&t2, NULL, start2, NULL);
   pthread_join(t1, NULL);
   pthread_join(t2, NULL);
+  sleep(3);
   printf("done.\n");
   return 0;
 }

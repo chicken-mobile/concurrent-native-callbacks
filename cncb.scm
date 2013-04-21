@@ -2,7 +2,8 @@
 
 
 (use typed-records matchable srfi-69 srfi-1 posix bind data-structures
-     srfi-18)
+     srfi-18 extras lolevel miscmacros)
+(import foreign)
 
 
 (import-for-syntax chicken matchable)
@@ -24,20 +25,19 @@
   (result-output-fileno : fixnum) )
 
 
+(define word-size (foreign-value "sizeof(void *)" int))
 (define dispatcher-table (make-hash-table eq?))
 
 (define (dispatcher id)
   (define (dthread) (make-thread dispatch))
   (define (dispatch)
     (let* ((disp (thread-specific (current-thread)))
-	   (in (dispatcher-argument-input-fileno disp))
-	   (out (dispatcher-result-output-fileno disp)))
+	   (in (open-input-file* (dispatcher-argument-input-fileno disp)))
+	   (out (open-output-file* (dispatcher-result-output-fileno disp))))
+      (print "starting dispatcher " id " ...") ;XXX
       (let loop ()
-	(print "starting dispatcher " id ", argument fds (in/out) = " 
-	       in "/" (dispatcher-argument-output-fileno disp)
-	       ", result fds (in/out) = " 
-	       (dispatcher-result-input-fileno disp) "/" out) ;XXX
-	(let ((input (read_message in)))
+	(let ((input (extract_argument_ptr (read-string word-size in))))
+	  (dump_data input)		      ;XXX
 	  (unless (##sys#null-pointer? input) ; aborts dispatcher
 	    (let ((cbname (extract_callback_name input)))
 	      (cond ((alist-ref cbname (dispatcher-callbacks disp)) =>
@@ -46,8 +46,8 @@
 		    (else
 		     (warning "callback not found" cbname id)))
 	      (loop)))
-	  (file-close in)
-	  (file-close out)
+	  (close-input-port in)
+	  (close-output-port out)
 	  (file-close (dispatcher-argument-output-fileno disp))
 	  (file-close (dispatcher-result-input-fileno disp))))))
   (or (hash-table-ref/default dispatcher-table id #f)
@@ -55,6 +55,7 @@
 	(let-values (((in1 out1) (create-pipe))
 		     ((in2 out2) (create-pipe)))
 	  (let ((disp (make-dispatcher id t '() in1 out1 in2 out2)))
+	    (hash-table-set! dispatcher-table id disp)
 	    (thread-specific-set! t disp)
 	    (thread-start! t)
 	    disp)))))		   
@@ -78,7 +79,3 @@
   (er-macro-transformer
    (lambda (x r c)
      (cncb-transformer x r c #t))))
-
-;;XXX is this obsolete?
-(define (synchronous-return argptr result)
-  (trigger_return argptr))

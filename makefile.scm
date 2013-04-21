@@ -29,7 +29,7 @@
 	   "cncb-simple-test.scm"
 	   "concurrent-native-callbacks.import.so")
 	  (run (csc -k -C -g simple-test.c -o test1
-		    -C -Wno-unused-result
+		    -C -Wno-unused-result -C "-O0"
 		    cncb-simple-test.scm -e
 		    -L$HOME/lib -lchicken -lpthread)))
 	 ("test2" ("hammering.c")
@@ -41,7 +41,7 @@
 
 (match (command-line-arguments)
   (("clean")
-   (run (rm -f *.so *.import.* test1 test2)))
+   (run (rm -f *.so *.import.* test1 test2 a.out *.o)))
   (()
    (build
     '("concurrent-native-callbacks.so"

@@ -23,7 +23,7 @@ pthread_cond_t cvar = PTHREAD_COND_INITIALIZER;
 int count = DEFAULT_COUNT;
 
 
-extern void bar(int x, int *r);	/* callback */
+extern int bar(int x);	/* callback */
 
 
 static void *
@@ -46,9 +46,7 @@ start(void *arg)
   printf("thread %ld running ...\n", i);
 
   for(j = 0; j < count; ++j) {
-    int r;
-    
-    bar(i + j, &r);
+    int r = bar(i + j);
     int rok = (i + j) * (i + j);
 
     if(r != rok) {

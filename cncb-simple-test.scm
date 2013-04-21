@@ -1,10 +1,9 @@
 (use concurrent-native-callbacks lolevel srfi-18)
 
-(define-concurrent-native-callback (foo (int x)) default 
+(define-concurrent-native-callback (foo (int x))
   (print "foo: " x))
 
-(define-synchronous-concurrent-native-callback 
-  (bar (int x) (int r)) default 
+(define-synchronous-concurrent-native-callback (bar (int x)) int
   (print "bar: " x)
   (* x x))
 

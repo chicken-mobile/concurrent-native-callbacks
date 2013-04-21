@@ -13,57 +13,73 @@
 	(%define (r 'define))
 	(%dispatcher (r 'dispatcher))
 	(%lambda (r 'lambda)))
-    (match x
-      ;;XXX change to "((name dispatcher-id) args ...)", id optional
-      ((_ (name args ...) dispatcher-id body ...)
-       `(,%begin
-	 (,%define ,%d (,%dispatcher (,%quote ,dispatcher-id)))
-	 ,(generate-entry-point r name %d args sync)
-	 (,%dispatcher-add!
-	  ,%d
-	  (,%quote ,name)
-	  (,%lambda
-	   (,%d ,%a) 
-	   ,(unstash-and-execute r args %a body sync))))))))
+    (define (expand name args dispatcher-id rtype body)
+      `(,%begin
+	(,%define ,%d (,%dispatcher (,%quote ,dispatcher-id)))
+	,(generate-entry-point r name %d args sync rtype)
+	(,%dispatcher-add!
+	 ,%d
+	 (,%quote ,name)
+	 (,%lambda
+	  (,%d ,%a) 
+	  ,(unstash-and-execute r args %a body sync)))))
+    (if sync
+	(match x
+	  ((_ ((name dispatcher-id) args ...) rtype body ...)
+	   (expand name args dispatcher-id rtype body))
+	  ((_ (name args ...) rtype body ...)
+	   (expand name args 'default rtype body)))
+	(match x
+	  ((_ ((name dispatcher-id) args ...) body ...)
+	   (expand name args dispatcher-id #f body))
+	  ((_ (name args ...) body ...)
+	   (expand name args 'default #f body))))))
 
-(define (generate-entry-point r name dispvar t/a sync)
+(define (generate-entry-point r name dispvar t/a sync rtype)
   (let ((cvar (gensym "cvar"))
 	(mutex (gensym "mutex"))
 	(infd (gensym "infd"))
 	(outfd (gensym "outfd"))
 	(data (gensym "data"))
 	(ptr (gensym "ptr"))
+	(result (symbol->string (gensym "result")))
+	(result-arg (gensym "arg"))
 	(%begin (r 'begin))
 	(%define-foreign-variable (r 'define-foreign-variable))
-	(%dispatcher-argument-input-fileno (r 'dispatcher-argument-input-fileno))
-	(%dispatcher-result-output-fileno (r 'dispatcher-result-output-fileno))
+	(%dispatcher-argument-output-fileno (r 'dispatcher-argument-output-fileno))
+	(%dispatcher-result-input-fileno (r 'dispatcher-result-input-fileno))
 	(%foreign-declare (r 'foreign-declare)))
-    ;; - by convention, in a synchronous call the last argument is a pointer to the result value
     (define (stash-arguments args)
       (let ((size (gensym "size")))
 	(with-output-to-string
 	  (lambda ()
 	    ;; add ptr to callback-name and cvar-ptr
-	    (printf "int ~a = sizeof(void *) * 2;~%char *~a, *~a;~%" 
-	      size data ptr)
+	    ;; we align to 8-byte, which should be sufficient
+	    (printf "int ~a = 4 * sizeof(void *);~%char *~a, *~a;~%" size data ptr)
+	    (when sync
+	      ;; by convention, in a synchronous call the last argument is a
+	      ;; pointer to the result value
+	      (set! args (append args `(((c-pointer ,rtype) ,result-arg))))
+	      (printf "~a, *~a = &~a;~%printf(\"r: %p\\n\", ~a);~%"
+		(foreign-type-declaration rtype result #t)
+		result-arg result result-arg))
 	    (for-each
 	     (match-lambda
 	       ((type arg)
-		(printf "~a += sizeof ~a;~%" size arg)))
+		(printf "~a += 2 * sizeof(void *);~%" size)))
 	     args)
 	    ;;XXX result of malloc(3) not checked
-	    (printf "~a = (char *)malloc(~a);~%~a = ~a;~%"
-	      data size ptr data)
-	    (printf "*((char **)~a) = \"~a\";~%~a += sizeof(char *);~%" 
-	      ptr name ptr)
+	    (printf "~a = (char *)malloc(~a);~%~a = ~a;~%" data size ptr data)
+	    (printf "*((char **)~a) = \"~a\";~%~a += 2 * sizeof(void *);~%" ptr name ptr)
 	    (when sync
-	      (printf "*((void **)~a) = &~a;~%~a += sizeof(void *);~%" 
-		ptr cvar ptr))
+	      (printf "*((void **)~a) = &~a;~%" ptr cvar))
+	    ;; one dummy ptr when no cvar needed
+	    (printf "~a += 2 * sizeof(void *);~%" ptr) 
 	    (for-each
 	     (match-lambda
 	       ((type arg)
-		(printf "memcpy(~a, &~a, sizeof ~a);~%~a += sizeof ~a;~%"
-		  ptr arg arg ptr arg)))
+		(printf "memcpy(~a, &~a, sizeof ~a);~%~a += 2 * sizeof(void *);~%" 
+		  ptr arg arg ptr)))
 	     args)))))
     `(,%begin
       (,%foreign-declare
@@ -71,10 +87,11 @@
        ,(conc "static int " infd "," outfd ";\n")
        ,(if sync
 	    (conc
-	     "pthread_cond_t " cvar " = PTHREAD_COND_INITIALIZER;\n"
-	     "pthread_mutex_t " mutex " = PTHREAD_MUTEX_INITIALIZER;\n")
+	     "static pthread_cond_t " cvar " = PTHREAD_COND_INITIALIZER;\n"
+	     "static pthread_mutex_t " mutex " = PTHREAD_MUTEX_INITIALIZER;\n")
 	    "")
-       ,(conc "void " name "("
+       ,(conc (if sync (foreign-type-declaration rtype "") "void")
+	      " " name "("
 	      (string-intersperse 
 	       (map (match-lambda
 		      ((type arg)
@@ -87,52 +104,72 @@
 	    "")
        ,(stash-arguments t/a)
        ;; no locking, unless size of data block exceeds PIPE_BUF
-       ;;XXX should check for this, even if it is unlikely
-       ,(conc "printf(\"writing to fd %d\\n\", " outfd ");\n") ;XXX
-       ,(conc "write(" outfd ", " data ", " ptr " - " data ");\n")
+       ,(conc "write(" outfd ", &" data ", sizeof(void *));\n")
        ,(if sync
 	   (conc "pthread_cond_wait(&" cvar ", &" mutex ");\n")
 	   "")
-       ,(conc "free(" data "); }\n"))
+       ,(if sync
+	    (conc "return " result ";\n")
+	    "")
+       "}\n")
       (,%define-foreign-variable ,infd int)
       (,%define-foreign-variable ,outfd int)
-      (set! ,outfd (,%dispatcher-result-output-fileno ,dispvar))
-      (set! ,infd (,%dispatcher-argument-input-fileno ,dispvar)))))
+      (set! ,outfd (,%dispatcher-argument-output-fileno ,dispvar))
+      (set! ,infd (,%dispatcher-result-input-fileno ,dispvar)))))
 
 
 (define (unstash-and-execute r t/a ptr body sync)
   (let ((%let (r 'let))
-	(%extract_argument_ptr (r 'extract_argument_ptr))
 	(%foreign-lambda* (r 'foreign-lambda*))
 	(%begin (r 'begin))
+	(%free (r 'free))
+	(%begin0 (r 'begin0))
+	(%advance! (r 'advance!))
 	(ptrvar (gensym "pptr")))
-    `(,%let ((,ptrvar (,%extract_argument_ptr ptr)))
+    `(,%let ((,ptrvar ((,%foreign-lambda* c-pointer ((c-pointer ptr)) "return(ptr);")
+		       ,ptr))		; copy pointer because of pointer-mutation below
+	     (,%advance! 
+	      (,%foreign-lambda* 
+	       void ((scheme-object ptr))
+	       "C_set_block_item(ptr, 0, C_block_item(ptr, 0) + 2 * sizeof(void *));")))
+	    (,%advance! ,ptrvar)	; cbname
+	    (,%advance! ,ptrvar)	; cvar
 	    (,%let
 	     ,(map (match-lambda
 		     ((type arg) 
-		      `(,arg ((,%foreign-lambda* 
-			       ,type
-			       (((c-pointer (c-pointer ,type)) ptr))
-			       "return(*((*ptr)++));")
-			      ,ptrvar))))
+		      `(,arg (,%begin0
+			      ((,%foreign-lambda* 
+				,type
+				(((c-pointer ,type) ptr))
+				,(string-append
+				  (foreign-type-declaration type "val")
+				  " = *ptr;\nreturn(val);"))
+			       ,ptrvar)
+			      (,%advance! ,ptrvar)))))
 		   t/a)
 	     ,@(if sync
 		   (let ((type (car (last t/a))))
 		     `(((,%foreign-lambda* 
 			 void
 			 (((c-pointer (c-pointer ,type)) ptr)
+			  (c-pointer buf)
 			  (,type val)
 			  (int index))
-			 "**(ptr + index + 2) = val;")
-			,ptrvar (,%begin ,@body) ,(length t/a))))
-		   body)))))
+			 "*(*ptr) = val;"
+			 "pthread_cond_signal(*((pthread_cond_t **)buf + 2));")
+			,ptrvar ,ptr (,%begin ,@body) ,(length t/a))))
+		   body))
+	     (,%free ,ptr))))
 
 
 ;; foreign-type conversion - taken from c-backend.scm
 
-(define (foreign-type-declaration type target)
+(define (foreign-type-declaration type target #!optional result?)
   (let ((err (lambda () (syntax-error "illegal foreign type" type)))
+	(badresult (lambda () (syntax-error "invalid native callback result type" type)))
 	(str (lambda (ts) (string-append ts " " target))) )
+    ;;XXX "badresult" not used - statically allocated data would be ok.
+    ;;    this is still rather error-prone.
     (case type
       ((scheme-object) (str "C_word"))
       ((char byte) (str "C_char"))
