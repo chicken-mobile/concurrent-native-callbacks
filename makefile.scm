@@ -29,25 +29,32 @@
 	   "cncb-simple-test.scm"
 	   "concurrent-native-callbacks.import.so")
 	  (run (csc -k -C -g simple-test.c -o test1
-		    -C -Wno-unused-result -C "-O0"
+		    -C -Wno-unused-result ;-C "-O0"
 		    cncb-simple-test.scm -e
 		    -L$HOME/lib -lchicken -lpthread)))
-	 ("test2" ("hammering.c")
+	 ("test2" ("hammering.c" 
+		   "cncb-simple-test.scm"
+		   "concurrent-native-callbacks.import.so")
 	  (run (csc -k -C -g hammering.c -o test2
-		    -C -Wno-unused-result
+		    -C -Wno-unused-result ;-C -O0
 		    cncb-simple-test.scm -e
 		    -L$HOME/lib -lchicken -lpthread))))
     args))
 
-(match (command-line-arguments)
-  (("clean")
-   (run (rm -f *.so *.import.* test1 test2 a.out *.o)))
-  (()
-   (build
-    '("concurrent-native-callbacks.so"
-      "concurrent-native-callbacks.import.so"
-      "concurrent-native-callbacks-compile-time.so"
-      "concurrent-native-callbacks-compile-time.import.so"
-      "test1"
-      "test2")))
-  (args (build args)))
+(for-each
+ (match-lambda
+   ("clean"
+    (run (rm -f *.so *.import.* test1 test2 a.out *.o)))
+   ("all"
+    (build
+     '("concurrent-native-callbacks.so"
+       "concurrent-native-callbacks.import.so"
+       "concurrent-native-callbacks-compile-time.so"
+       "concurrent-native-callbacks-compile-time.import.so"
+       "test1"
+       "test2")))
+   (arg (build (list arg))))
+ (let ((args (command-line-arguments)))
+   (if (null? args)
+       (list "all")
+       args)))

@@ -8,14 +8,14 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <chicken.h>
+#include <unistd.h>
 
 
-#define MAX_THREADS         1000
+#define MAX_THREADS         100
 #define DEFAULT_THREADS     10
-#define DEFAULT_COUNT       1000
+#define DEFAULT_COUNT       100
 
 
-int counters[ MAX_THREADS ];
 pthread_t threads[ MAX_THREADS ];
 pthread_t chicken_thread;
 pthread_mutex_t cmutex = PTHREAD_MUTEX_INITIALIZER;
@@ -23,13 +23,14 @@ pthread_cond_t cvar = PTHREAD_COND_INITIALIZER;
 int count = DEFAULT_COUNT;
 
 
-extern int bar(int x);	/* callback */
+extern int bar(int t, int x);	/* callback */
 
 
 static void *
 start_chicken(void *arg)
 {
   CHICKEN_run(C_toplevel);
+  printf("chicken returned.\n");
   return NULL;
 }
 
@@ -44,10 +45,17 @@ start(void *arg)
   pthread_mutex_lock(&cmutex);
   pthread_cond_wait(&cvar, &cmutex);
   printf("thread %ld running ...\n", i);
+  pthread_mutex_unlock(&cmutex);
 
-  for(j = 0; j < count; ++j) {
-    int r = bar(i + j);
-    int rok = (i + j) * (i + j);
+  for(j = 1; j <= count; ++j) {
+    int r, rok;
+
+    usleep(1000 * 250);		/* 250ms */
+
+    printf("thread %ld calling (%ld) ...\n", i, i + j);
+    r = bar((int)i, i + j);
+    printf("thread %ld call returned: %d\n", i, r);
+    rok = (i + j) * (i + j);
 
     if(r != rok) {
       printf("ERROR: thread %ld expected %d but got %d\n", i, rok, r);
@@ -80,6 +88,7 @@ main(int argc, char *argv[])
   for(i = 0; i < n; ++i)
     pthread_create(&threads[ i ], NULL, start, (void *)(long)i);
 
+  printf("starting threads ...\n");
   pthread_cond_broadcast(&cvar);
 
   for(i = 0; i < n; ++i) {

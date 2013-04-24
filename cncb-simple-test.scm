@@ -3,9 +3,10 @@
 (define-concurrent-native-callback (foo (int x))
   (print "foo: " x))
 
-(define-synchronous-concurrent-native-callback (bar (int x)) int
-  (print "bar: " x)
-  (* x x))
+(define-synchronous-concurrent-native-callback (bar (int t) (int x)) int
+  (let ((r (* x x)))
+    (print "bar(" t "): " x " -> " r)
+    r))
 
 (thread-start!
  (lambda ()

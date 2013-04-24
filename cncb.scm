@@ -40,10 +40,9 @@
     (let* ((disp (thread-specific (current-thread)))
 	   (in (nonblocking-pipe-input-port (dispatcher-argument-input-fileno disp) id))
 	   (out (nonblocking-pipe-output-port (dispatcher-result-output-fileno disp) id)))
-      (print "starting dispatcher " id " ...") ;XXX
       (let loop ()
 	(let ((input (extract_argument_ptr (read-string word-size in))))
-	  (dump_data input)		      ;XXX
+	  ;(dump_data input)		      ;XXX
 	  (unless (##sys#null-pointer? input) ; aborts dispatcher
 	    (let ((cbname (extract_callback_name input)))
 	      (cond ((alist-ref cbname (dispatcher-callbacks disp)) =>
