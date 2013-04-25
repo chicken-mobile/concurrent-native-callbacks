@@ -94,11 +94,6 @@
       (,%foreign-declare
        "#include <pthread.h>\n"
        ,(conc "static int " infd "," outfd ";\n")
-       ,(if sync
-	    (conc
-	     "static pthread_cond_t " cvar " = PTHREAD_COND_INITIALIZER;\n"
-	     "static pthread_mutex_t " mutex " = PTHREAD_MUTEX_INITIALIZER;\n")
-	    "")
        ,(conc (if sync (foreign-type-declaration rtype "") "void")
 	      " " name "("
 	      (string-intersperse 
@@ -108,13 +103,23 @@
 		    t/a)
 	       ",")
 	      "){\n")
+       ,(if sync
+	    (conc
+	     "pthread_cond_t " cvar ";\n"
+	     "pthread_mutex_t " mutex ";\n")
+	    "")
        ,(stash-arguments t/a)
-       ;; no locking, unless size of data block exceeds PIPE_BUF
+       ,(if sync
+	    (conc "pthread_mutex_init(&" mutex ", NULL);\n"
+		  "pthread_cond_init(&" cvar ", NULL);\n"
+		  "pthread_mutex_lock(&" mutex ");\n")
+	    "")
        ,(conc "write(" outfd ", &" data ", sizeof(void *));\n")
        ,(if sync
-	    (conc "pthread_mutex_lock(&" mutex ");\n"
-		  "pthread_cond_wait(&" cvar ", &" mutex ");\n"
-		  "pthread_mutex_unlock(&" mutex ");\n")
+	    (conc "pthread_cond_wait(&" cvar ", &" mutex ");\n"
+		  "pthread_mutex_unlock(&" mutex ");\n"
+		  "pthread_cond_destroy(&" cvar ");\n"
+		  "pthread_mutex_destroy(&" mutex ");\n")
 	   "")
        ,(if sync
 	    (conc "return " result ";\n")
