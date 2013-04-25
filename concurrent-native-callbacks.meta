@@ -1,0 +1,8 @@
+;;; -*- Scheme -*-
+
+((synopsis "Invoke callbacks from other native threads")
+ (category hell)
+ (license "BSD")
+ (depends typed-records matchable bind miscmacros)
+ (test-depends shell)
+ (author "bevuta IT GmbH (Felix Winkelmann)"))
