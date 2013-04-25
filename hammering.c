@@ -21,6 +21,7 @@ pthread_t chicken_thread;
 pthread_mutex_t cmutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cvar = PTHREAD_COND_INITIALIZER;
 int count = DEFAULT_COUNT;
+int condition = 0;
 
 
 extern int bar(int t, int x);	/* callback */
@@ -43,7 +44,10 @@ start(void *arg)
 
   printf("thread %ld waiting...\n", i);
   pthread_mutex_lock(&cmutex);
-  pthread_cond_wait(&cvar, &cmutex);
+
+  while(!condition)
+    pthread_cond_wait(&cvar, &cmutex);
+
   printf("thread %ld running ...\n", i);
   pthread_mutex_unlock(&cmutex);
 
@@ -68,6 +72,10 @@ start(void *arg)
 }
 
 
+/* XXX something is seriously wrong here. Some thread will forever wait and thus
+   not be joined.
+ */
+
 int
 main(int argc, char *argv[])
 {
@@ -89,7 +97,10 @@ main(int argc, char *argv[])
     pthread_create(&threads[ i ], NULL, start, (void *)(long)i);
 
   printf("starting threads ...\n");
+  pthread_mutex_lock(&cmutex);
+  condition = 1;
   pthread_cond_broadcast(&cvar);
+  pthread_mutex_unlock(&cmutex);
 
   for(i = 0; i < n; ++i) {
     printf("waiting for thread %d ...\n", i);

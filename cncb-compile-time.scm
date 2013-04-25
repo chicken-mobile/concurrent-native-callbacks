@@ -114,7 +114,7 @@
 		  "pthread_cond_init(&" cvar ", NULL);\n"
 		  "pthread_mutex_lock(&" mutex ");\n")
 	    "")
-       ,(conc "write(" outfd ", &" data ", sizeof(void *));\n")
+       ,(conc "(void)write(" outfd ", &" data ", sizeof(void *));\n")
        ,(if sync
 	    (conc "pthread_cond_wait(&" cvar ", &" mutex ");\n"
 		  "pthread_mutex_unlock(&" mutex ");\n"
