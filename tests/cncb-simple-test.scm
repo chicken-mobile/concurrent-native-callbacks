@@ -15,13 +15,7 @@
      (print* "_")
      (thread-sleep! 0.25))))
 
-(cond-expand 
-  (main-dispatcher
-   (print "dispatching from primordial thread...")
-   (dispatch))
-  (else
-   (print "started")
-   (thread-sleep! 1000000)
-   (print "timeout") ) )
-
-(return-to-host)			; should not execute
+(print "dispatching...")
+(dispatch)
+(print "done")
+(return-to-host)

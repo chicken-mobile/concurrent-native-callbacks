@@ -1,9 +1,9 @@
 ;;;; concurrent native callbacks
 
 
-(use typed-records matchable srfi-69 srfi-1 posix bind data-structures
+(use srfi-69 srfi-1 posix data-structures
      srfi-18 extras lolevel miscmacros)
-(import foreign)
+(import typed-records matchable bind foreign)
 
 
 (import-for-syntax chicken matchable)
