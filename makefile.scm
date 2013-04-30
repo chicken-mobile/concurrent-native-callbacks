@@ -40,6 +40,15 @@
 		    hammering.c -o test2
 		    -C -Wno-unused-result
 		    cncb-simple-test.scm -e
+		    -L$HOME/lib -lchicken -lpthread)))
+	 ("test3" ("hammering.c" 
+		   "cncb-simple-test.scm"
+		   "concurrent-native-callbacks.import.so")
+	  (run (csc ;-k -C -g
+		    hammering.c -o test3
+		    -C -Wno-unused-result
+		    -feature main-dispatcher
+		    cncb-simple-test.scm -e
 		    -L$HOME/lib -lchicken -lpthread))))
     args))
 
@@ -54,7 +63,8 @@
        "concurrent-native-callbacks-compile-time.so"
        "concurrent-native-callbacks-compile-time.import.so"
        "test1"
-       "test2")))
+       "test2"
+       "test3")))
    (arg (build (list arg))))
  (let ((args (command-line-arguments)))
    (if (null? args)

@@ -6,7 +6,7 @@
 				     dispatcher-argument-output-fileno
 				     dispatcher-result-input-fileno
 				     dispatcher-result-output-fileno
-				     
+				     dispatch
 				     dispatcher-add!
 				     dispatcher-terminate!
 				     define-concurrent-native-callback
