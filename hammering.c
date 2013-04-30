@@ -11,9 +11,9 @@
 #include <unistd.h>
 
 
-#define MAX_THREADS         100
+#define MAX_THREADS         20
 #define DEFAULT_THREADS     10
-#define DEFAULT_COUNT       100
+#define DEFAULT_COUNT       10
 
 
 pthread_t threads[ MAX_THREADS ];
