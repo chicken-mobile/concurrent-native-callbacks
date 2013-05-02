@@ -15,7 +15,7 @@
 	      -C -Wno-unused-result
 	      cncb-simple-test.scm -e
 	      -lpthread))))
-  '("test1" "test2" "test3"))
+  '("test1" "test2"))
 
 (run (./test1))
 (run (./test2 10 10))
