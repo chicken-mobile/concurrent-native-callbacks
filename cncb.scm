@@ -64,7 +64,7 @@
 
 (define (dispatcher id)
   (let ((box (list #f)))
-    (define (dthread) (make-thread (cut dispatch-loop box)))
+    (define (dthread) (make-thread (cut dispatch-loop box) id))
     (or (hash-table-ref/default dispatcher-table id #f)
 	(let ((disp (create-dispatcher id (dthread))))
 	  (set-car! box disp)
@@ -72,9 +72,7 @@
 	  disp))))
 
 (define (dispatch #!optional (id 'default))
-  (let-values (((in1 out1) (create-pipe))
-	       ((in2 out2) (create-pipe)))
-    (dispatch-loop (list (make-dispatcher id (current-thread) '() in1 out1 in2 out2)))))
+  (thread-join! (dispatcher-thread (dispatcher id))))
 
 (define (dispatcher-add! disp name cb)
   (dispatcher-callbacks-set!
