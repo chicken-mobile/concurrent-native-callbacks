@@ -22,7 +22,7 @@
 	 (,%quote ,name)
 	 (,%lambda
 	  (,%d ,%a) 
-	  ,(unstash-and-execute r args %a body sync)))))
+	  ,(unstash-and-execute r args %a body sync rtype)))))
     (if sync
 	(match x
 	  ((_ ((name dispatcher-id) args ...) rtype body ...)
@@ -131,7 +131,7 @@
       (set! ,infd (,%dispatcher-result-input-fileno ,dispvar)))))
 
 
-(define (unstash-and-execute r t/a ptr body sync)
+(define (unstash-and-execute r t/a ptr body sync rtype)
   (let ((%let (r 'let))
 	(%foreign-lambda* (r 'foreign-lambda*))
 	(%begin (r 'begin))
@@ -162,20 +162,19 @@
 			      (,%advance! ,ptrvar)))))
 		   t/a)
 	     ,@(if sync
-		   (let ((type (car (last t/a))))
-		     `(((,%foreign-lambda* 
-			 void
-			 (((c-pointer (c-pointer ,type)) ptr)
-			  (c-pointer buf)
-			  (,type val)
-			  (int index))
-			 "pthread_mutex_t *m = *((pthread_mutex_t **)buf + 2);"
-			 "pthread_cond_t *c = *((pthread_cond_t **)buf + 4);"
-			 "*(*ptr) = val;"
-			 "pthread_mutex_lock(m);"
-			 "pthread_cond_signal(c);"
-			 "pthread_mutex_unlock(m);")
-			,ptrvar ,ptr (,%begin ,@body) ,(length t/a))))
+		   `(((,%foreign-lambda* 
+		       void
+		       (((c-pointer (c-pointer ,rtype)) ptr)
+			(c-pointer buf)
+			(,rtype val)
+			(int index))
+		       "pthread_mutex_t *m = *((pthread_mutex_t **)buf + 2);"
+		       "pthread_cond_t *c = *((pthread_cond_t **)buf + 4);"
+		       "*(*ptr) = val;"
+		       "pthread_mutex_lock(m);"
+		       "pthread_cond_signal(c);"
+		       "pthread_mutex_unlock(m);")
+		      ,ptrvar ,ptr (,%begin ,@body) ,(length t/a)))
 		   body))
 	     (,%free ,ptr))))
 
