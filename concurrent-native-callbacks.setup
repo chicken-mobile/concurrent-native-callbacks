@@ -8,4 +8,4 @@
    "concurrent-native-callbacks.import.so"
    "concurrent-native-callbacks-compile-time.so"
    "concurrent-native-callbacks-compile-time.import.so")
- '((version 0.5)))
+ '((version 0.6)))
