@@ -62,16 +62,17 @@
 	      ;; by convention, in a synchronous call the last argument is a
 	      ;; pointer to the result value
 	      (set! args (append args `(((c-pointer ,rtype) ,result-arg))))
-	      (printf "~a; ~a = &~a;~%"
-		(foreign-type-declaration rtype result name)
-		(foreign-type-declaration 
-		 `(c-pointer ,rtype)
-		 (symbol->string result-arg))
-		result))
+	      (if (eq? rtype 'void)
+		  (printf "void *~a;~%" result-arg)
+		  (printf "~a; ~a = &~a;~%"
+		    (foreign-type-declaration rtype result name)
+		    (foreign-type-declaration 
+		     `(c-pointer ,rtype)
+		     (symbol->string result-arg))
+		    result)))
 	    (for-each
-	     (match-lambda
-	       ((type arg)
-		(printf "~a += 2 * sizeof(void *);~%" size)))
+	     (lambda _
+	       (printf "~a += 2 * sizeof(void *);~%" size))
 	     args)
 	    ;;XXX result of malloc(3) not checked
 	    (printf "~a = (char *)malloc(~a);~%~a = ~a;~%" data size ptr data)
@@ -86,7 +87,7 @@
 		   (printf "~a += 4 * sizeof(void *);~%" ptr)))
 	    (for-each
 	     (match-lambda
-	       ((type arg)
+	       ((_ arg)
 		(printf "memcpy(~a, &~a, sizeof ~a);~%~a += 2 * sizeof(void *);~%" 
 		  ptr arg arg ptr)))
 	     args)))))
@@ -121,7 +122,7 @@
 		  "pthread_cond_destroy(&" cvar ");\n"
 		  "pthread_mutex_destroy(&" mutex ");\n")
 	   "")
-       ,(if sync
+       ,(if (and sync (not (eq? 'void rtype)))
 	    (conc "return " result ";\n")
 	    "")
        "}\n")
@@ -166,11 +167,11 @@
 		       void
 		       (((c-pointer (c-pointer ,rtype)) ptr)
 			(c-pointer buf)
-			(,rtype val)
+			(,(if (eq? rtype 'void) 'scheme-object rtype) val)
 			(int index))
 		       "pthread_mutex_t *m = *((pthread_mutex_t **)buf + 2);"
 		       "pthread_cond_t *c = *((pthread_cond_t **)buf + 4);"
-		       "*(*ptr) = val;"
+		       ,(if (eq? rtype 'void) "" "*(*ptr) = val;")
 		       "pthread_mutex_lock(m);"
 		       "pthread_cond_signal(c);"
 		       "pthread_mutex_unlock(m);")
