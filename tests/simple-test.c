@@ -12,6 +12,7 @@ pthread_t chicken_thread;
 
 extern void foo(int x);	/* callback */
 extern int bar(int t, int x);	/* callback */
+extern void voidresult(int t);	/* callback */
 
 
 static void *
@@ -37,6 +38,7 @@ start2(void *arg)
 {
   int r = bar(0, 43);
   printf("bar done: %d\n", r);
+  voidresult(0);
   return NULL;
 }
 

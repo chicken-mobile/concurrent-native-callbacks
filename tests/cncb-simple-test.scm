@@ -8,6 +8,9 @@
     (print "bar(" t "): " x " -> " r)
     r))
 
+(define-synchronous-concurrent-native-callback (voidresult (int t)) void
+  (print "voidresult(" t ")"))
+
 (thread-start!
  (lambda ()
    (print "starting spin ...")
