@@ -2,8 +2,8 @@
 
 
 (use srfi-69 srfi-1 posix data-structures
-     srfi-18 extras lolevel miscmacros)
-(import typed-records matchable bind foreign)
+     srfi-18 extras lolevel)
+(import typed-records miscmacros matchable bind foreign)
 
 
 (import-for-syntax chicken matchable)
