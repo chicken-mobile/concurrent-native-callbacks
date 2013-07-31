@@ -10,7 +10,6 @@
 	   "concurrent-native-callbacks-compile-time.import.so")
 	  (compile -sJ -O3 cncb-module.scm
 		    ;-C -g -k			;XXX
-		    ;-C -Wno-unused-result
 		    -o concurrent-native-callbacks.so))
 	 ("concurrent-native-callbacks.import.so"
 	  ("concurrent-native-callbacks.so")
