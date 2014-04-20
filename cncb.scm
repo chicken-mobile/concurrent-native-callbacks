@@ -40,9 +40,10 @@
 	 (in (nonblocking-pipe-input-port (dispatcher-argument-input-fileno disp) id))
 	 (out (nonblocking-pipe-output-port (dispatcher-result-output-fileno disp) id)))
     (let loop ()
-      (let ((input (extract_argument_ptr (read-string word-size in))))
-	(cond ((not (##sys#null-pointer? input))
-	       (let ((cbname (extract_callback_name input)))
+      (let ((word (read-string word-size in)))
+	(cond ((not (##sys#null-pointer? word))
+	       (let* ((input  (extract_argument_ptr word))
+		      (cbname (extract_callback_name input)))
 		 (cond ((alist-ref cbname (dispatcher-callbacks disp)) =>
 			(lambda (cb)
 			  (cb disp input)))
@@ -81,7 +82,7 @@
 
 (define (dispatcher-terminate! disp)
   (send_termination_message
-   (dispatcher-argument-input-fileno disp)))
+   (dispatcher-argument-output-fileno disp)))
 
 
 (define-syntax define-concurrent-native-callback
