@@ -81,7 +81,7 @@
 
 (define (dispatcher-terminate! disp)
   (send_termination_message
-   (dispatcher-argument-input-fileno disp)))
+   (dispatcher-argument-output-fileno disp)))
 
 
 (define-syntax define-concurrent-native-callback
