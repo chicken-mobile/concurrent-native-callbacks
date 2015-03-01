@@ -38,7 +38,6 @@
 (define (generate-entry-point r name dispvar t/a sync rtype)
   (let ((cvar (gensym "cvar"))
 	(mutex (gensym "mutex"))
-	(infd (gensym "infd"))
 	(outfd (gensym "outfd"))
 	(data (gensym "data"))
 	(ptr (gensym "ptr"))
@@ -46,8 +45,7 @@
 	(result-arg (gensym "arg"))
 	(%begin (r 'begin))
 	(%define-foreign-variable (r 'define-foreign-variable))
-	(%dispatcher-argument-output-fileno (r 'dispatcher-argument-output-fileno))
-	(%dispatcher-result-input-fileno (r 'dispatcher-result-input-fileno))
+	(%dispatcher-output-fileno (r 'dispatcher-output-fileno))
 	(%foreign-declare (r 'foreign-declare))
 	(rtype (strip-syntax rtype))
 	(t/a (strip-syntax t/a)))
@@ -94,7 +92,7 @@
     `(,%begin
       (,%foreign-declare
        "#include <pthread.h>\n"
-       ,(conc "static int " infd "," outfd ";\n")
+       ,(conc "static int " outfd ";\n")
        ,(conc (if sync (foreign-type-declaration rtype "") "void")
 	      " " name "("
 	      (string-intersperse 
@@ -126,10 +124,8 @@
 	    (conc "return " result ";\n")
 	    "")
        "}\n")
-      (,%define-foreign-variable ,infd int)
       (,%define-foreign-variable ,outfd int)
-      (set! ,outfd (,%dispatcher-argument-output-fileno ,dispvar))
-      (set! ,infd (,%dispatcher-result-input-fileno ,dispvar)))))
+      (set! ,outfd (,%dispatcher-output-fileno ,dispvar)))))
 
 
 (define (unstash-and-execute r t/a ptr body sync rtype)

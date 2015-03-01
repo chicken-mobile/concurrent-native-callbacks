@@ -2,10 +2,8 @@
 				     dispatcher?
 				     dispatcher-id
 				     dispatcher-thread
-				     dispatcher-argument-input-fileno
-				     dispatcher-argument-output-fileno
-				     dispatcher-result-input-fileno
-				     dispatcher-result-output-fileno
+				     dispatcher-input-fileno
+				     dispatcher-output-fileno
 				     dispatch
 				     dispatcher-add!
 				     dispatcher-terminate!
