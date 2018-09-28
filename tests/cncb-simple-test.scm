@@ -1,4 +1,4 @@
-(use concurrent-native-callbacks lolevel srfi-18)
+(import concurrent-native-callbacks srfi-18)
 
 (define-concurrent-native-callback (foo (int x))
   (print "foo: " x))

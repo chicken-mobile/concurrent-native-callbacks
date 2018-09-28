@@ -1,0 +1,16 @@
+((synopsis "Invoke callbacks from other native threads")
+ (category hell)
+ (license "BSD")
+ (dependencies typed-records matchable bind miscmacros)
+ (test-dependencies shell make)
+ (author "bevuta IT GmbH (Felix Winkelmann)")
+ (component-options (csc-options "-O3" "-d0"))
+ (components (extension concurrent-native-callbacks
+                        (source "cncb-module.scm")
+                        (source-dependencies "cncb.scm" 
+                                             "twiddle.c")
+                        (component-dependencies concurrent-native-callbacks-compile-time))
+             (extension concurrent-native-callbacks-compile-time
+                        (linkage dynamic)
+                        (source "cncb-compile-time-module.scm")
+                        (source-dependencies "cncb-compile-time.scm"))))

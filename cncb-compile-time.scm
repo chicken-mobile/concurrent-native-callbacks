@@ -1,7 +1,7 @@
 ;;;; compile-time part of cncb
 
 
-(use data-structures srfi-1 matchable ports)
+(import matchable srfi-1)
 
 
 (define (cncb-transformer x r c sync)

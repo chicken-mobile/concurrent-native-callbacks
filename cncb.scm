@@ -1,16 +1,18 @@
 ;;;; concurrent native callbacks
 
 
-(use srfi-69 srfi-1 posix data-structures
-     srfi-18 extras lolevel)
-(import typed-records miscmacros matchable bind foreign)
+(import srfi-69 srfi-1 srfi-18)
+(import typed-records miscmacros matchable bind 
+        (chicken foreign)
+        (chicken process)
+        (chicken io)
+        (chicken string)
+        (chicken file posix)
+        (chicken type))
 
 
-(import-for-syntax chicken matchable)
-
-(begin-for-syntax
- (require-extension concurrent-native-callbacks-compile-time))
-
+(import-for-syntax (chicken base) matchable)
+(import-for-syntax concurrent-native-callbacks-compile-time)
 
 (bind-file* "twiddle.c")
 

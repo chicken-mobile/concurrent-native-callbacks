@@ -3,5 +3,10 @@
      generate-entry-point
      unstash-and-execute
      foreign-type-declaration)
-  (import scheme chicken)
+  (import scheme 
+          (chicken base)
+          (chicken string)
+          (chicken syntax)
+          (chicken format)
+          (chicken port))
   (include "cncb-compile-time.scm"))
