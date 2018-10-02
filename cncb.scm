@@ -1,16 +1,24 @@
 ;;;; concurrent native callbacks
 
 
-(use srfi-69 srfi-1 posix data-structures
-     srfi-18 extras lolevel)
-(import typed-records miscmacros matchable bind foreign)
+(import (chicken file posix)
+	(chicken foreign)
+	(chicken io)
+	(chicken process)
+	(chicken string)
+	(chicken syntax)
+	(chicken type)
+	(srfi 18)
+	(srfi 69)
+	(only (chicken memory) free)) ; used in expansion of d-c-n-c
 
-
-(import-for-syntax chicken matchable)
+(import-syntax (bind)
+	       (matchable)
+	       (typed-records)
+	       (only (miscmacros) begin0)) ; s.a.
 
 (begin-for-syntax
- (require-extension concurrent-native-callbacks-compile-time))
-
+  (import (concurrent-native-callbacks-compile-time)))
 
 (bind-file* "twiddle.c")
 
@@ -83,7 +91,6 @@
 (define (dispatcher-terminate! disp)
   (send_termination_message
    (dispatcher-argument-output-fileno disp)))
-
 
 (define-syntax define-concurrent-native-callback
   (er-macro-transformer

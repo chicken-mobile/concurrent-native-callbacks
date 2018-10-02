@@ -1,8 +1,11 @@
 ;;;; compile-time part of cncb
 
+(import (chicken format)
+	(chicken port)
+	(chicken string)
+	(chicken syntax))
 
-(use data-structures srfi-1 matchable ports)
-
+(import-syntax (matchable))
 
 (define (cncb-transformer x r c sync)
   (let ((%d (r 'd))

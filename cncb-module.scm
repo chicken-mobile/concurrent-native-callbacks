@@ -11,6 +11,5 @@
 				     dispatcher-terminate!
 				     define-concurrent-native-callback
 				     define-synchronous-concurrent-native-callback)
-				     
-  (import scheme chicken)
-  (include "cncb.scm") )
+  (import (scheme) (chicken base))
+  (include "cncb.scm"))
