@@ -1,7 +1,7 @@
 ((synopsis "Invoke callbacks from other native threads")
  (category hell)
  (license "BSD")
- (dependencies typed-records matchable bind miscmacros)
+ (dependencies typed-records matchable bind miscmacros srfi-18 srfi-69)
  (test-dependencies shell make)
  (author "bevuta IT GmbH (Felix Winkelmann)")
  (component-options (csc-options "-O3" "-d0"))
