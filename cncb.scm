@@ -1,18 +1,22 @@
 ;;;; concurrent native callbacks
 
+(import (chicken file posix)
+	(chicken foreign)
+	(chicken io)
+	(chicken process)
+	(chicken string)
+	(chicken syntax)
+	(chicken type)
+	(srfi 18)
+	(srfi 69)
+	(only (chicken memory) free)) ; used in expansion of d-c-n-c
+(import-syntax (bind)
+	       (matchable)
+	       (typed-records)
+	       (only (miscmacros) begin0)) ; s.a.
 
-(import srfi-69 srfi-1 srfi-18)
-(import typed-records miscmacros matchable bind 
-        (chicken foreign)
-        (chicken process)
-        (chicken io)
-        (chicken string)
-        (chicken file posix)
-        (chicken type))
-
-
-(import-for-syntax (chicken base) matchable)
-(import-for-syntax concurrent-native-callbacks-compile-time)
+(begin-for-syntax
+  (import concurrent-native-callbacks-compile-time))
 
 (bind-file* "twiddle.c")
 
