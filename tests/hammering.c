@@ -81,8 +81,11 @@ main(int argc, char *argv[])
 {
   int i;
   int n = DEFAULT_THREADS;
+  pthread_addr_t a;
 
-  pthread_create(&chicken_thread, NULL, start_chicken, NULL);
+  pthread_attr_init(&a);
+  pthread_attr_setstacksize(&a, 4000000);
+  pthread_create(&chicken_thread, &a, start_chicken, NULL);
   sleep(2);			/* give it some time to get running */
 
   if(argc > 1)
